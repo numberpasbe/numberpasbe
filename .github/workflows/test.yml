@@ -1,0 +1,44 @@
+name: test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend-name: [serial, ray]
+        python-version: [3.7, 3.8, 3.9]
+    env:
+      OS: 'ubuntu'
+      PYTHON: ${{ matrix.python-version }}
+      BACKEND: ${{ matrix.backend-name }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install NumS
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install .[testing]
+          pip install cython
+          pip install crick
+      - name: Run tests
+        run: |
+          coverage run --parallel-mode -m pytest --backend-name ${{ matrix.backend-name }}
+      - name: Generate coverage report
+        run: |
+          coverage combine
+          coverage report
+          coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          env_vars: OS,PYTHON,BACKEND
